@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
 
+"""
+This code uses stock market data from Kaggle to predict the price movement of
+stocks by boosting severel machine learning models.
+"""
+
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
@@ -12,7 +17,9 @@ from sklearn.ensemble import RandomForestRegressor
 import matplotlib.pyplot as plt
 from sklearn.svm import SVC
 
-def average_data_from_range(data_df, data_idx, data_labels, data_range = 2, prefix = None, df_modify = None, return_std = False):
+def average_data_from_range(data_df, data_idx, data_labels, data_range = 2, 
+                            prefix = None, df_modify = None, 
+                            return_std = False):
     """
     
     average_data_from_range takes in a data frame, an index, and labels and 
@@ -52,7 +59,7 @@ def average_data_from_range(data_df, data_idx, data_labels, data_range = 2, pref
         rng = range(0,data_range,-1)
     label_avg_list = dict()
     data_to_avg = data_df.iloc[[data_idx+c for c in rng]].mean()
-    for label in labels:
+    for label in data_labels:
         avg = round(data_to_avg[label],4)
         df_modify[prefix + label] = avg
         label_avg_list[prefix + label] = avg
@@ -66,19 +73,20 @@ def collect_data(pth, labels, key_lab = 'Path_name', include_path = True):
     """
     
     collect_data reads in a csv as a pandas.DataFrame and keeps only specified 
-    labels and adds the path name to the data_frame
+    keys and adds the path name to the data_frame
     
     INPUTS:
-    pth                  : The path to the data_frame
-    labels            : The keys to keep for the data fram
+    pth    : The path to the data_frame
+    labels : The keys to keep for the data frame
     
     OPTIONS:
-    key_lab (default 'Path_name') : The value of the new key
-    include_path (default True)  : Determines if the output data frame should include a columns containing the path
+    key_lab      : (default 'Path_name') The value of the new key
+    include_path : (default True) Determines if the output data frame should include a columns containing the path
     
     RETURNS:
-    df : a data frame of the read data for the chosen labels
-    fle_name (default None) : the name of the file without the path
+    df       : a data frame of the read data for the chosen labels
+    fle_name : (default None) the name of the file without the path
+    
     """
     df = pd.read_csv(pth)
     fle_name = None
@@ -108,66 +116,35 @@ def normalize_data(df,lab,norm_lab):
 
     for col in df.columns:
         if col.find(lab) != -1 and col != norm_lab:
-            df[col] = (df[col] - df[norm_lab])/(data_pivot[norm_lab]+0.0001)
-    
-paths = glob('.\Stocks\*')
-prev = 0
+            df[col] = (df[col] - df[norm_lab])/(df[norm_lab]+0.0001)
 
-labels = ['Open','High','Low','Close','Volume']
-data_points = 75
-n_samples = 10
+#features to predict
+predict_labels = ['Open','High','Low','Close','Volume']
+
+#path to the data file that stores the training/test set
 load_data = '15_week_weekly_data.csv'
-#load_data = None
-df_main = pd.DataFrame()
 
-rnd = np.random.permutation(len(paths))
-dummy = pd.DataFrame()
-temp = []
-if type(load_data) == type(None):
-    for i,path in enumerate([paths[idd] for idd in rnd]):#enumerate(paths):#
-        if i%100 == 0:
-            print(i)
-        try:
-            data, path = collect_data(path,['Date'] + labels,key_lab ='stock')
-        except:
-            continue
-        if len(data)<1000:
-            continue
-        permute_idx = np.random.permutation(len(data) - data_points - 10)[0:n_samples] + data_points
-        for idx in permute_idx:
-            temp3 = []
-            temp2 = data.iloc[np.array(idx - range(data_points))].copy()
-            temp3.append(pd.DataFrame({'Date' : data.iloc[idx]['Date'], 'stock' : path}, index = [0]))
-            for x in range(-5,data_points+5,5):
-                prf = 'week_' + str(round(x/5)) + '_avg_'
-                out = average_data_from_range(data, idx-x, labels, data_range = 5, prefix = prf ,df_modify = dummy)
-                temp3.append(pd.DataFrame(out, index = [0]))
-            temp.append(pd.concat(temp3,axis = 1))
-            
-    data_pivot = pd.concat(temp,ignore_index = True)
-    data_pivot.to_csv('15_week_weekly_data.csv')
-else:
-    data_pivot = pd.read_csv(load_data, index_col = 0)
+stock_data = pd.read_csv(load_data, index_col = 0)
     
-print(data_pivot.head())
-data_pivot = data_pivot.drop(columns = ['Date','stock'])
+print(stock_data.head())
+stock_data = stock_data.drop(columns = ['Date','stock'])
     
 prf = 'week_0_avg_'
-for label in labels:
-    normalize_data(data_pivot, label, prf + label)
+for label in predict_labels:
+    normalize_data(stock_data, label, prf + label)
 
-for label in labels:
-    mean = np.array(data_pivot[prf + label]).mean()
-    std = np.array(data_pivot[prf + label]).std()
-    tst_met = (data_pivot[prf + label] - mean)/std
-    data_pivot['week_-1_' + label + '_increase_metric'] = sum([tst_met > (1.5 - met*0.5) for met in range(7)])
-    data_pivot.drop(columns = [prf + label], inplace = True)
+for label in predict_labels:
+    mean = np.array(stock_data[prf + label]).mean()
+    std = np.array(stock_data[prf + label]).std()
+    tst_met = (stock_data[prf + label] - mean)/std
+    stock_data['week_-1_' + label + '_increase_metric'] = sum([tst_met > (1.5 - met*0.5) for met in range(7)])
+    stock_data.drop(columns = [prf + label], inplace = True)
 
 prf = 'week_-1_avg_'
 
-data_pivot.fillna(1)
+stock_data.fillna(1)
 
-data_pivot2 = data_pivot.copy()
+data_pivot2 = stock_data.copy()
 data_pivot2.reset_index(inplace = True, drop = True)
 
 cluster_count = 3
@@ -195,19 +172,19 @@ params = {
 
 X = data_pivot2[[col for col in data_pivot2.columns if col.find('-1')==-1]]
 LR = {}
-for label in labels:
+for label in predict_labels:
     print('For ' + label)
     y = data_pivot2[prf+label]
     
-    print('For Training set')
+    print('Training set results:')
     
     X_train,X_test,y_train,y_test = train_test_split(X,y,test_size = .2,random_state = 42)
     
     LR[label] = GridSearchCV(RandomForestRegressor(),params,n_jobs = -1)
     LR[label].fit(X_train, y_train)
-    print('Score = ' + str(round(LR.best_score_,3)), ', Count = ' + str(len(X_train)))
+    print('Score = ' + str(round(LR[label].best_score_,3)), ', Count = ' + str(len(X_train)))
     print()
-    print('For Test')
-    print('Score = ' + str(round(LR.score(X_test,y_test),3)), ', Count = ' + str(len(X_test)))
+    print('Test set results:')
+    print('Score = ' + str(round(LR[label].score(X_test,y_test),3)), ', Count = ' + str(len(X_test)))
     print()
     print()
