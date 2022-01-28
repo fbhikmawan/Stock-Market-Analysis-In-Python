@@ -112,13 +112,18 @@ data_points    : range of trading days to be used for prediction
 rg_to_avg      : range of data points over which to average
 n_samples      : number of samples to use per stock ticker
 rnd_perm       : a random permutation of the path indicies only a few if desired
+prefix_fun     : a lambda function that names the columns of the output dataframe. 
+                 The input is going to be the distance between the current 
+                 index and the start index
 """
 
 path_to_stocks = '.\Stocks\*'
-save_file_path = '15_week_weekly_data.csv'
+save_file_path = '.\\data\\75_day_daily_data.csv'
 paths = glob(path_to_stocks)
 
-data_points, rg_to_avg, n_samples = 75, 5, 10
+data_points, rg_to_avg, n_samples = 75, 1, 10
+
+prefix_fun = lambda a : 'day_' + str(a)+ '_'
 
 predict_labels = ['Open','High','Low','Close','Volume']
 rnd_perm = np.random.permutation(len(paths))
@@ -147,7 +152,7 @@ for i,path in enumerate([paths[idd] for idd in rnd_perm]):
         individual_stock_data_list  = []
         individual_stock_data_list.append(pd.DataFrame({'Date' : data.iloc[idx]['Date'], 'stock' : path}, index = [0]))
         for x in range(-rg_to_avg,data_points+rg_to_avg,rg_to_avg):
-            data_prefix = 'week_' + str(round(x/5)) + '_avg_'
+            data_prefix = prefix_fun(x)
             out = average_data_from_range(data, idx-x, predict_labels,
                                           data_range = rg_to_avg,
                                           prefix = data_prefix ,df_modify = dummy)
@@ -157,5 +162,5 @@ for i,path in enumerate([paths[idd] for idd in rnd_perm]):
         data_list.append(pd.concat(individual_stock_data_list,axis = 1))
         
 main_stock_data_frame = pd.concat(data_list ,ignore_index = True)
-main_stock_data_frame.to_csv('15_week_weekly_data.csv')
+main_stock_data_frame.to_csv(save_file_path)
 
