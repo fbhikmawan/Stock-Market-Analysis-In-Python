@@ -6,15 +6,7 @@ prediciton
 
 import numpy as np
 import pandas as pd
-from sklearn.cluster import KMeans
 from glob import glob
-from yellowbrick.cluster import SilhouetteVisualizer,KElbowVisualizer
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler,Normalizer
-from sklearn.model_selection import GridSearchCV,train_test_split
-from sklearn.ensemble import RandomForestRegressor
-import matplotlib.pyplot as plt
-from sklearn.svm import SVC
 
 def average_data_from_range(data_df, data_idx, data_labels, data_range = 2, 
                             prefix = None, df_modify = None, 
