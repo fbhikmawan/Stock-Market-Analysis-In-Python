@@ -1,3 +1,5 @@
 Stocks
 data
 RF_model
+data_FFT/75_day_daily_data.csv
+data_FFT/30_week_weekly_data.csv

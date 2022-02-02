@@ -11,7 +11,7 @@ from sklearn.cluster import KMeans
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import GridSearchCV
-from sklearn.ensemble import RandomForestRegressor,ExtraTreesRegressor,GradientBoostingRegressor,ExtraTreesClassifier
+from sklearn.ensemble import RandomForestRegressor,ExtraTreesRegressor,GradientBoostingRegressor
 from sklearn.decomposition import PCA
 from sklearn.svm import SVC
 import collections
@@ -75,9 +75,9 @@ predict_labels = ['Open','High','Low','Close','Volume']
 #norm_prf = 'week_0_avg_'
 #predict_prf = 'week_-1_avg_'
 
-load_data = '.\\data_FFT\\30_week_weekly_data.csv'
-norm_prf = 'week_0_avg_'
-predict_prf = 'week_-1_avg_'
+load_data = '.\\data_FFT\\75_day_daily_data.csv'
+norm_prf = 'day_0_'
+predict_prf = 'day_-1_'
 exclude_key = 'fft'
 
 to_load_model_file_name = None
@@ -119,7 +119,7 @@ counter = collections.Counter(cluster_data)
 X = stock_data_copy[[col for col in stock_data_copy.columns if col.find('-1')==-1]].copy()
 X['k'] = cluster_data
 
-pipe_PCA = make_pipeline(StandardScaler(), PCA(n_components = 50,random_state = 42))
+pipe_PCA = make_pipeline(StandardScaler(), PCA(n_components = 25,random_state = 42))
 pipe_PCA.fit(X)
 X_PCA = pd.DataFrame(pipe_PCA.transform(X))
 X_PCA['k'] = X['k']
@@ -142,54 +142,38 @@ init_model = ExtraTreesRegressor(bootstrap=True, min_samples_split=5, n_estimato
 
 
 LR = []
-LR2 = []
-for est_cnt in [361]:
-    print('EST_CNT = ', est_cnt)
-    for label in ['Open','High']:# predict_labels:
-        print('For ' + label)
-        
-        y = stock_data_copy[prf+label].copy()
-        y_std = y.std()
-        y_mean = y.mean()
-        y_sign = y>0
-        #y = abs(y)
-        
-        #y = stock_data_copy[prf+label].copy()
 
-        y_train = y.iloc[train_permute]
-        y_test = y.iloc[test_permute]
-        y_train_s = y_sign.iloc[train_permute]
-        y_test_s = y_sign.iloc[test_permute]
-        for k in counter.keys(): #range(cluster_count):
-            if counter[k] != max(counter.values()):
-                continue
-            selection_list = X_train['k'] == k
-            X_k_train = X_train[selection_list]
-            y_k_train = y_train[selection_list]
-            y_k_train_s = y_train_s[selection_list]
-            
-            selection_list = X_test['k'] == k
-            X_k_test = X_test[selection_list]
-            y_k_test = y_test[selection_list]
-            y_k_test_s = y_test_s[selection_list]
-            print('Training set ' + str(k) + ' results:')
-            if type(to_load_model_file_name) == type(None):
-                LR.append([ExtraTreesRegressor(bootstrap=True, min_samples_split=5, n_estimators=est_cnt,
-                                        oob_score=True, random_state=42, warm_start=True),label+str(k)])
-                LR2.append([ExtraTreesClassifier(bootstrap=True, min_samples_split=5, n_estimators=est_cnt,
-                                        oob_score=True, random_state=42, warm_start=True),label+str(k)])
-                #LR.append([GradientBoostingRegressor(init = init_model, n_estimators=179,random_state=42),label+str(k)])
-                LR[-1][0].fit(X_k_train, y_k_train)
-                LR2[-1][0].fit(X_k_train, y_k_train_s)
-            else:
-                LR = pickle.load(open(to_load_model_file_name, 'rb'))
-            print('Score = ' + str(round(LR[-1][0].score(X_k_train,y_k_train),3)), ', Count = ' + str(len(X_k_train)))
-            print('Sign Score = ' + str(round(LR2[-1][0].score(X_k_train,y_k_train_s),3)), ', Count = ' + str(len(X_k_train)))
-            print()
-            print('Test set ' + str(k) + ' results:')
-            print('Score = ' + str(round(LR[-1][0].score(X_k_test,y_k_test),3)), ', Count = ' + str(len(X_k_test)))
-            print('Sign Score = ' + str(round(LR2[-1][0].score(X_k_test,y_k_test_s),3)), ', Count = ' + str(len(X_k_test)))
-            print()
+for label in predict_labels:
+    print('For ' + label)
+    
+    y = stock_data_copy[prf+label].copy()
+    
+    y_train = y.iloc[train_permute]
+    y_test = y.iloc[test_permute]
+    
+    for k in range(cluster_count):
+        if counter[k] < 100:
+            continue
+        selection_list = X_train['k'] == k
+        X_k_train = X_train[selection_list]
+        y_k_train = y_train[selection_list]
+        
+        selection_list = X_test['k'] == k
+        X_k_test = X_test[selection_list]
+        y_k_test = y_test[selection_list]
+        print('Training set ' + str(k) + ' results:')
+        if type(to_load_model_file_name) == type(None):
+            #LR.append([ExtraTreesRegressor(bootstrap=True, min_samples_split=5, n_estimators=179,
+            #                        oob_score=True, random_state=42, warm_start=True),label+str(k)])
+            LR.append([GradientBoostingRegressor(init = init_model, n_estimators=179,random_state=42),label+str(k)])
+            LR[-1][0].fit(X_k_train, y_k_train)
+        else:
+            LR = pickle.load(open(to_load_model_file_name, 'rb'))
+        print('Score = ' + str(round(LR[-1][0].score(X_k_train,y_k_train),3)), ', Count = ' + str(len(X_k_train)))
+        print()
+        print('Test set ' + str(k) + ' results:')
+        print('Score = ' + str(round(LR[-1][0].score(X_k_test,y_k_test),3)), ', Count = ' + str(len(X_k_test)))
+        print()
     print()
     
 if type(to_save_model_file_name) != type(None):
